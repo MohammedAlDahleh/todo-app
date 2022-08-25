@@ -1,159 +1,120 @@
-import React, { useEffect, useState, useContext } from 'react';
-import useForm from '../hooks/form';
-
+import React, { useEffect, useState ,useContext} from 'react';
+import List from '../list/list.js';
 import { v4 as uuid } from 'uuid';
-import { Button, Label, Switch,Card,Elevation } from '@blueprintjs/core';
-import { SettingsContext } from '../context/settings/context';
+import Form from '../form/form.js';
+import { SettingsContext } from '../../context/settings.js';
+import ReactPaginate from 'react-paginate';
+import { Card, Elevation } from "@blueprintjs/core";
+
 
 const ToDo = () => {
+  
+  const [currentItems, setCurrentItems] = useState([]);
+  const [pageCount, setPageCount] = useState(0);
+  const [itemOffset, setItemOffset] = useState(0);
 
   const [list, setList] = useState([]);
   const [incomplete, setIncomplete] = useState([]);
-  const { handleChange, handleSubmit } = useForm(addItem);
-
+  const [sort, setSort] = useState(false);
   const settings = useContext(SettingsContext);
-  const [startIdx, setStartIdx] = useState(0);
-  const [endIdx, setEndIdx] = useState(settings.numItems);
-
-
+  
   function addItem(item) {
     console.log(item);
     item.id = uuid();
     item.complete = false;
     setList([...list, item]);
   }
+
   function deleteItem(id) {
-    const items = list.filter(item => item.id !== id);
+    const items = list.filter( item => item.id !== id );
     setList(items);
   }
 
   function toggleComplete(id) {
 
-    const items = list.map(item => {
-      if (item.id == id) {
-        item.complete = !item.complete;
+    const items = list.map( item => {
+      if ( item.id === id ) {
+        item.complete = ! item.complete;
       }
       return item;
     });
-
     setList(items);
-
   }
+  const handleSort = () => {
+    let items;
+    if(settings.sortBy === 'difficulty'){
+      items=  currentItems.sort((a,b)=>{
+        if(a.difficulty > b.difficulty){
+          return 1;
+        }else if(a.difficulty < b.difficulty){
+          return -1;
+        }
+        return 0;
+      })
+    }
+ 
+    console.log(items);
+    setSort(!sort);
+    setList(items);
+  }
+  
   useEffect(() => {
-    let incompleteCount = list.filter(item => !item.complete);
-    setIncomplete(incompleteCount);
-    //document.title = `To Do List: ${incomplete.length}`;
-  }, [list]);
-  function handleHide() {
-    settings.setHide(!settings.hide);
-  }
-
-  function pagination() {
-    let data = incomplete.slice(startIdx, endIdx);
-    console.log(data, startIdx, endIdx);
-    return data;
-  }
-   
-
-  function handleNext() {
-    if (endIdx <= incomplete.length) {
-      setStartIdx(startIdx + settings.numItems);
-      setEndIdx(endIdx + settings.numItems);
-    }
-  }
-  function handlePrevious() {
-    if (startIdx > 0) {
-      setStartIdx(startIdx - settings.numItems);
-      setEndIdx(endIdx - settings.numItems);
-    }
-  }
+    // Fetch items from another resources.
+    const endOffset = itemOffset + settings.numberItems;
+    console.log(`Loading items from ${itemOffset} to ${endOffset}`);
+    setCurrentItems(list.slice(itemOffset, endOffset));
+    setPageCount(Math.ceil(list.length / settings.numberItems));
+  }, [itemOffset, settings.numberItems,list]);
 
   
-
   useEffect(() => {
-    setStartIdx(0);
-    setEndIdx(settings.numItems);
-  }, [settings.numItems]);
+    setList(list)
+    let incompleteCount = list.filter(item => !item.complete).length;
+    setIncomplete(incompleteCount);
+    document.title = `To Do List: ${incomplete}`;
+  }, [list,sort,incomplete]);
+
+    const handlePageClick = (event) => {
+    const newOffset = (event.selected * settings.numberItems) % list.length;
+    console.log(
+      `User requested page number ${event.selected}, which is offset ${newOffset}`
+    );
+    setItemOffset(newOffset);
+    };
 
   
   return (
     <>
       <header>
-        <h1>To Do List: {incomplete.length} items pending</h1>
+        <h1>To Do List: {incomplete} items pending</h1>
       </header>
-
-      <form onSubmit={handleSubmit}>
-
-        <h2>Add To Do Item</h2>
-<label>
-          <span>To Do Item</span>
-          <input
-            onChange={handleChange}
-            name="text"
-            type="text"
-            placeholder="Item Details"
-          />
-       </label>
-
-        <Label>
-          <span>Assigned To</span>
-          <input
-            onChange={handleChange}
-            name="assignee"
-            type="text"
-            placeholder="Assignee Name"
-          />
-        </Label>
-
-        <Label>
-          <span>Difficulty</span>
-         
-          <input
-            onChange={handleChange}
-            defaultValue={3}
-            type="range"
-            min={1}
-            max={5}
-            name="difficulty"
-          />
-        </Label>
-
-        <Label>
-          <Button type="submit">Add Item</Button>
-        </Label>
-
-        <Label>
-          <Switch onChange={handleHide}> Hide Completed Tasks </Switch>
-        </Label>
+      <div className='container'>
+      <Card elevation={Elevation.TWO} className='card-form'>
+      <Form addItem={addItem}  handleSort={handleSort}/>
+      </Card>
+      <br></br>
+      <div className='list-container'>
+      {currentItems.map(item => (
+        <List item={item} deleteItem={deleteItem} toggleComplete={toggleComplete} />
+       ))}
+      </div>
+     
+      </div>
+      <div className='pag'>
+         <ReactPaginate
+        breakLabel="..."
+        nextLabel="next >"
+        onPageChange={handlePageClick}
+        pageRangeDisplayed={5}
+        pageCount={pageCount}
+        previousLabel="< previous"
+        renderOnZeroPageCount={null}
+      />
+      </div>
       
-      </form>
 
-      
-      {pagination().map(item => (
-
-<div key={item.id}>
-         {settings.hide === false || item.complete === false ? (
-            <>
-              <p>Item: {item.text}</p>
-              <p>
-                <small>Assigned to: {item.assignee}</small>
-              </p>
-              <p>
-                <small>Difficulty: {item.difficulty}</small>
-              </p>
-              <div onClick={() => toggleComplete(item.id)}>
-                Complete: {item.complete.toString()}
-              </div>
-              <hr />
-              <Button onClick={() => deleteItem(item.id)}>Delete</Button>
-            </>
-          ) : null}
-        </div>
-      ))}
-  <Button onClick={handlePrevious}>Previous</Button>
-      <Button onClick={handleNext}>NEXT</Button>
     </>
   );
 };
 
-export default ToDo; 
+export default ToDo;
