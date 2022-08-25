@@ -2,7 +2,7 @@ import './app.css';
 import React from 'react';
 import ToDo from './components/todo/todo';
 import Settings from './context/settings';
-function App() {
+export default function App() {
   return (
     <div className="App">
       <Settings>
@@ -12,4 +12,4 @@ function App() {
   );
 }
 
-export default App;
+// export default App;
